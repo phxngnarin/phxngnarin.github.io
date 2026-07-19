@@ -11,4 +11,4 @@ https://github.com/phxngnarin/phxngnarin.github.io
 
 Interactive Computer Graphics
 
-phxngnarin.github.io
+https://phxngnarin.github.io/
