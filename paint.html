@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>CV & Raster Graphics</title>
+<style>
+  body {
+    font-family: "Sarabun", "Tahoma", sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #fafafa;
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    background: #f0f0f0;
+    border-bottom: 1px solid #ccc;
+    flex-wrap: wrap;
+  }
+  .toolbar label {
+    font-weight: bold;
+    font-size: 14px;
+  }
+  select, input[type="color"] {
+    padding: 4px 6px;
+    font-size: 14px;
+  }
+  input[type="range"] {
+    width: 140px;
+  }
+  #thickness-val {
+    font-weight: bold;
+    min-width: 40px;
+    display: inline-block;
+  }
+  button {
+    padding: 6px 14px;
+    background: #e74c3c;
+    color: white;
+    border: 1px solid #c0392b;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #c0392b;
+  }
+  #canvas-wrap {
+    padding: 20px;
+  }
+  canvas {
+    border: 1px solid #333;
+    cursor: crosshair;
+    background: #fff;
+    display: block;
+  }
+</style>
+</head>
+<body>
+<h3> พงค์ณรินทร์ รัตนชาติวิเชียร </h3>
+<p> phongnarin.r@ku.th </p>
+<div class="toolbar">
+  <label>เครื่องมือ:
+    <select id="tool">
+      <option value="pencil">✏️ ดินสอ</option>
+      <option value="line">／ วาดเส้น</option>
+      <option value="rect">▭ วาดสี่เหลี่ยม</option>
+      <option value="circle">◯ วาดวงรี/กลม</option>
+      <option value="eraser">🧹 ยางลบ</option>
+    </select>
+  </label>
+
+  <label>สี: <input type="color" id="color" value="#000000"></label>
+
+  <label>ความหนาเส้น:
+    <input type="range" id="thickness" min="1" max="50" value="20">
+    <span id="thickness-val">20 px</span>
+  </label>
+
+  <button id="clear">🗑 ล้างหน้ากระดาษ</button>
+</div>
+
+<div id="canvas-wrap">
+  <canvas id="canvas" width="1000" height="1000"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const toolSelect = document.getElementById('tool');
+const colorInput = document.getElementById('color');
+const thicknessInput = document.getElementById('thickness');
+const thicknessVal = document.getElementById('thickness-val');
+const clearBtn = document.getElementById('clear');
+
+let drawing = false;
+let startX = 0, startY = 0;
+let snapshot = null;
+
+thicknessInput.addEventListener('input', () => {
+  thicknessVal.textContent = thicknessInput.value + ' px';
+});
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return {
+    x: (clientX - rect.left) * (canvas.width / rect.width),
+    y: (clientY - rect.top) * (canvas.height / rect.height)
+  };
+}
+
+function setupStroke() {
+  ctx.strokeStyle = colorInput.value;
+  ctx.fillStyle = colorInput.value;
+  ctx.lineWidth = thicknessInput.value;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+}
+
+function startDraw(e) {
+  e.preventDefault();
+  drawing = true;
+  const pos = getPos(e);
+  startX = pos.x;
+  startY = pos.y;
+  setupStroke();
+
+  if (toolSelect.value === 'pencil' || toolSelect.value === 'eraser') {
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+  } else {
+    snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  }
+}
+
+function draw(e) {
+  if (!drawing) return;
+  e.preventDefault();
+  const pos = getPos(e);
+  const tool = toolSelect.value;
+
+  if (tool === 'pencil') {
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  } else if (tool === 'eraser') {
+    ctx.save();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    ctx.restore();
+  } else if (tool === 'line') {
+    ctx.putImageData(snapshot, 0, 0);
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  } else if (tool === 'rect') {
+    ctx.putImageData(snapshot, 0, 0);
+    ctx.strokeRect(startX, startY, pos.x - startX, pos.y - startY);
+  } else if (tool === 'circle') {
+    ctx.putImageData(snapshot, 0, 0);
+    const rx = Math.abs(pos.x - startX) / 2;
+    const ry = Math.abs(pos.y - startY) / 2;
+    const cx = (pos.x + startX) / 2;
+    const cy = (pos.y + startY) / 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function endDraw() {
+  drawing = false;
+}
+
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', endDraw);
+canvas.addEventListener('mouseleave', endDraw);
+
+canvas.addEventListener('touchstart', startDraw, { passive: false });
+canvas.addEventListener('touchmove', draw, { passive: false });
+canvas.addEventListener('touchend', endDraw);
+
+clearBtn.addEventListener('click', () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+});
+
+ctx.fillStyle = '#ffffff';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+</script>
+
+</body>
+</html>
